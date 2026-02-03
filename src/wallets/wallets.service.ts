@@ -2,8 +2,8 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Inject,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Wallet } from './entities/wallet.entity';
 import { Balance } from './entities/balance.entity';
@@ -14,17 +14,24 @@ import { TransactionStatus } from '../common/enums/transaction-status.enum';
 import { FxRatesService } from '../fx-rates/fx-rates.service';
 import { FundWalletDto } from './dto/fund-wallet.dto';
 import { ConvertCurrencyDto } from './dto/convert-currency.dto';
+import {
+  WALLET_REPOSITORY,
+  BALANCE_REPOSITORY,
+  TRANSACTION_REPOSITORY,
+  DATA_SOURCE,
+} from '../core/constants';
 
 @Injectable()
 export class WalletsService {
   constructor(
-    @InjectRepository(Wallet)
+    @Inject(WALLET_REPOSITORY)
     private walletRepository: Repository<Wallet>,
-    @InjectRepository(Balance)
+    @Inject(BALANCE_REPOSITORY)
     private balanceRepository: Repository<Balance>,
-    @InjectRepository(Transaction)
+    @Inject(TRANSACTION_REPOSITORY)
     private transactionRepository: Repository<Transaction>,
     private fxRatesService: FxRatesService,
+    @Inject(DATA_SOURCE)
     private dataSource: DataSource,
   ) {}
 

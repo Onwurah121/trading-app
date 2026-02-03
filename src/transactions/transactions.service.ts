@@ -1,13 +1,13 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { Injectable, Inject } from '@nestjs/common';
 import { Repository, Between, FindOptionsWhere } from 'typeorm';
 import { Transaction } from './entities/transaction.entity';
 import { GetTransactionsDto } from './dto/get-transactions.dto';
+import { TRANSACTION_REPOSITORY } from '../core/constants';
 
 @Injectable()
 export class TransactionsService {
   constructor(
-    @InjectRepository(Transaction)
+    @Inject(TRANSACTION_REPOSITORY)
     private transactionRepository: Repository<Transaction>,
   ) {}
 

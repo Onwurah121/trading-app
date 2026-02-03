@@ -3,8 +3,8 @@ import {
   ConflictException,
   UnauthorizedException,
   BadRequestException,
+  Inject,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -14,14 +14,16 @@ import { RegisterDto } from './dto/register.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { LoginDto } from './dto/login.dto';
 import { EmailService } from '../common/services/email.service';
+import { USER_REPOSITORY, DATA_SOURCE } from '../core/constants';
 
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(User)
+    @Inject(USER_REPOSITORY)
     private userRepository: Repository<User>,
     private jwtService: JwtService,
     private emailService: EmailService,
+    @Inject(DATA_SOURCE)
     private dataSource: DataSource,
   ) {}
 
