@@ -8,6 +8,7 @@ import { Repository, DataSource } from 'typeorm';
 import { Wallet } from './entities/wallet.entity';
 import { Balance } from './entities/balance.entity';
 import { Transaction } from '../transactions/entities/transaction.entity';
+import { User } from '../users/entities/user.entity';
 import { Currency } from '../common/enums/currency.enum';
 import { TransactionType } from '../common/enums/transaction-type.enum';
 import { TransactionStatus } from '../common/enums/transaction-status.enum';
@@ -60,21 +61,30 @@ export class WalletsService {
     };
   }
 
-  async fundWallet(userId: string, fundWalletDto: FundWalletDto) {
-    const { currency, amount } = fundWalletDto;
+  async fundWallet(fundWalletDto: FundWalletDto) {
+    const { email, currency, amount } = fundWalletDto;
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // Get wallet
+      // Find user by email first
+      const user = await queryRunner.manager.findOne(User, {
+        where: { email },
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Get wallet by userId
       const wallet = await queryRunner.manager.findOne(Wallet, {
-        where: { userId },
+        where: { userId: user.id },
       });
 
       if (!wallet) {
-        throw new NotFoundException('Wallet not found');
+        throw new NotFoundException('Wallet not found for this user');
       }
 
       // Get or create balance for currency
@@ -99,7 +109,7 @@ export class WalletsService {
 
       // Create transaction record
       const transaction = queryRunner.manager.create(Transaction, {
-        userId,
+        userId: user.id,
         type: TransactionType.FUNDING,
         toCurrency: currency,
         toAmount: amount.toString(),

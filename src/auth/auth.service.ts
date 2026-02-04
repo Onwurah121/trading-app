@@ -73,7 +73,7 @@ export class AuthService {
       await queryRunner.commitTransaction();
 
       // Send OTP email
-      await this.emailService.sendOTP(email, otp);
+      await this.emailService.emailVerification(email, otp);
 
       return {
         message: 'Registration successful. Please check your email for OTP.',

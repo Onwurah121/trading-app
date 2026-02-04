@@ -1,14 +1,14 @@
-import { IsEnum, IsNumber, IsPositive } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsEnum, IsNumber, IsPositive, IsString } from 'class-validator';
 import { Currency } from '../../common/enums/currency.enum';
 import { Type } from 'class-transformer';
 
 export class FundWalletDto {
-  @ApiProperty({ enum: Currency, example: Currency.NGN })
+  @IsString()
+  email: string;
+  
   @IsEnum(Currency)
   currency: Currency;
 
-  @ApiProperty({ example: 10000 })
   @IsNumber()
   @IsPositive()
   @Type(() => Number)

@@ -24,6 +24,9 @@ export class User {
   @Column({ default: false })
   isVerified: boolean;
 
+  @Column({ default: false })
+  isAdmin: boolean;
+
   @Column({ nullable: true })
   @Exclude()
   otp: string;
