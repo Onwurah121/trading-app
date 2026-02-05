@@ -8,10 +8,10 @@ import { FundWalletDto } from './dto/fund-wallet.dto';
 import { ConvertCurrencyDto } from './dto/convert-currency.dto';
 
 @Controller('wallet')
-@UseGuards(JwtAuthGuard, VerifiedUserGuard)
 export class WalletsController {
   constructor(private readonly walletsService: WalletsService) {}
 
+  @UseGuards(JwtAuthGuard, VerifiedUserGuard)
   @Get()
   async getWallet(@CurrentUser() user: User) {
     return this.walletsService.getWallet(user.id);
@@ -24,6 +24,7 @@ export class WalletsController {
     return this.walletsService.fundWallet(fundWalletDto);
   }
 
+  @UseGuards(JwtAuthGuard, VerifiedUserGuard)
   @Post('convert')
   async convertCurrency(
     @CurrentUser() user: User,
@@ -32,6 +33,7 @@ export class WalletsController {
     return this.walletsService.convertCurrency(user.id, convertDto);
   }
 
+  @UseGuards(JwtAuthGuard, VerifiedUserGuard)
   @Post('trade')
   async trade(
     @CurrentUser() user: User,

@@ -75,9 +75,11 @@ export class AuthService {
       // Send OTP email
       await this.emailService.emailVerification(email, otp);
 
+      const token = this.generateToken(savedUser);
+
       return {
         message: 'Registration successful. Please check your email for OTP.',
-        email: savedUser.email,
+        access_token: token,
       };
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -87,8 +89,8 @@ export class AuthService {
     }
   }
 
-  async verifyOtp(verifyOtpDto: VerifyOtpDto) {
-    const { email, otp } = verifyOtpDto;
+  async verifyOtp(email: string, verifyOtpDto: VerifyOtpDto) {
+    const { otp } = verifyOtpDto;
 
     const user = await this.userRepository.findOne({ where: { email } });
 

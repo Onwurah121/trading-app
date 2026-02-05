@@ -26,28 +26,30 @@ export class CurrenciesController {
     return this.currenciesService.create(createCurrencyDto);
   }
 
-  @Get()
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Get('all')
   findAll() {
     return this.currenciesService.findAll();
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('active')
   findAllActive() {
     return this.currenciesService.findAllActive();
   }
 
-  @Get(':id')
+  @Get('get-one/:id')
   findOne(@Param('id') id: string) {
     return this.currenciesService.findOne(id);
   }
 
-  @Patch(':id')
+  @Patch('update/:id')
   @UseGuards(JwtAuthGuard, AdminGuard)
   update(@Param('id') id: string, @Body() updateCurrencyDto: UpdateCurrencyDto) {
     return this.currenciesService.update(id, updateCurrencyDto);
   }
 
-  @Delete(':id')
+  @Delete('delete/:id')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: string) {

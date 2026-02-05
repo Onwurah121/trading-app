@@ -9,7 +9,7 @@ import { Wallet } from './entities/wallet.entity';
 import { Balance } from './entities/balance.entity';
 import { Transaction } from '../transactions/entities/transaction.entity';
 import { User } from '../users/entities/user.entity';
-import { Currency } from '../common/enums/currency.enum';
+//import { Currency } from '../common/enums/currency.enum';
 import { TransactionType } from '../common/enums/transaction-type.enum';
 import { TransactionStatus } from '../common/enums/transaction-status.enum';
 import { FxRatesService } from '../fx-rates/fx-rates.service';
@@ -20,7 +20,9 @@ import {
   BALANCE_REPOSITORY,
   TRANSACTION_REPOSITORY,
   DATA_SOURCE,
+  CURRENCY_REPOSITORY,
 } from '../core/constants';
+import { Currency } from 'src/currencies/entities/currency.entity';
 
 @Injectable()
 export class WalletsService {
@@ -34,6 +36,8 @@ export class WalletsService {
     private fxRatesService: FxRatesService,
     @Inject(DATA_SOURCE)
     private dataSource: DataSource,
+    @Inject(CURRENCY_REPOSITORY)
+    private currencyRepository: Repository<Currency>,
   ) {}
 
   async getWallet(userId: string) {
@@ -46,10 +50,10 @@ export class WalletsService {
       throw new NotFoundException('Wallet not found');
     }
 
-    // Format balances for response
+    // Format balances for response - convert from smallest unit to actual amount
     const balances = {};
     wallet.balances.forEach((balance) => {
-      balances[balance.currency] = balance.amount;
+      balances[balance.currency] = parseFloat((balance.amount / 100).toFixed(2));
     });
 
     return {
@@ -62,7 +66,9 @@ export class WalletsService {
   }
 
   async fundWallet(fundWalletDto: FundWalletDto) {
-    const { email, currency, amount } = fundWalletDto;
+    let { email, currency, amount } = fundWalletDto;
+    // Convert to smallest unit (cents) and ensure it's an integer
+    amount = Math.round(amount * 100);
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -85,6 +91,15 @@ export class WalletsService {
 
       if (!wallet) {
         throw new NotFoundException('Wallet not found for this user');
+      }
+
+      //Check if currency exists
+      const foundCurrency = await queryRunner.manager.findOne(Currency, {
+        where: { code: currency, isActive: true },
+      });
+
+      if (!foundCurrency) {
+        throw new NotFoundException('Currency not found');
       }
 
       // Get or create balance for currency
@@ -144,9 +159,16 @@ export class WalletsService {
   }
 
   async convertCurrency(userId: string, convertDto: ConvertCurrencyDto) {
-    const { fromCurrency, toCurrency, amount } = convertDto;
+    let { fromCurrency, toCurrency, amount } = convertDto;
+    let [fromCurrencyCode, toCurrencyCode] = await Promise.all([
+      this.currencyRepository.findOne({ where: { code: fromCurrency } }),
+      this.currencyRepository.findOne({ where: { code: toCurrency } }),
+    ]);
+    if(!fromCurrencyCode || !toCurrencyCode){
+      throw new NotFoundException('Currency not found');
+    }
 
-    if (fromCurrency === toCurrency) {
+    if (fromCurrencyCode.code === toCurrencyCode.code) {
       throw new BadRequestException('Cannot convert to the same currency');
     }
 
@@ -165,20 +187,25 @@ export class WalletsService {
       }
 
       // Get exchange rate
-      const exchangeRate = await this.fxRatesService.getRate(
+      let exchangeRate = await this.fxRatesService.getRate(
         fromCurrency,
         toCurrency,
       );
-
+      console.log(exchangeRate);
+      let conversionRate = exchangeRate[toCurrencyCode.code];
+      
+      // Convert input amount to smallest unit (cents)
+      const amountInCents = Math.round(amount * 100);
+      
       // Get source balance with pessimistic lock
       const fromBalance = await queryRunner.manager.findOne(Balance, {
         where: { walletId: wallet.id, currency: fromCurrency },
         lock: { mode: 'pessimistic_write' },
       });
 
-      if (!fromBalance || fromBalance.amount < amount) {
+      if (!fromBalance || fromBalance.amount < amountInCents) {
         throw new BadRequestException(
-          `Insufficient ${fromCurrency} balance. Available: ${fromBalance ? fromBalance.amount : 0}`,
+          `Insufficient ${fromCurrency} balance. Available: ${fromBalance ? (fromBalance.amount / 100).toFixed(2) : 0}`,
         );
       }
 
@@ -196,11 +223,11 @@ export class WalletsService {
         });
       }
 
-      // Calculate converted amount
-      const convertedAmount = amount * exchangeRate;
+      // Calculate converted amount and round to integer (cents)
+      const convertedAmount = Math.round(amountInCents * conversionRate);
 
       // Update balances
-      const newFromAmount = fromBalance.amount - amount;
+      const newFromAmount = fromBalance.amount - amountInCents;
       const newToAmount = toBalance.amount + convertedAmount;
 
       fromBalance.amount = newFromAmount;
@@ -216,11 +243,11 @@ export class WalletsService {
         fromCurrency,
         toCurrency,
         fromAmount: amount.toString(),
-        toAmount: convertedAmount.toString(),
-        exchangeRate: exchangeRate.toString(),
+        toAmount: (convertedAmount / 100).toString(),
+        exchangeRate: conversionRate.toString(),
         status: TransactionStatus.COMPLETED,
         metadata: {
-          fromBalanceBefore: fromBalance.amount + amount,
+          fromBalanceBefore: fromBalance.amount + amountInCents,
           fromBalanceAfter: newFromAmount,
           toBalanceBefore: toBalance.amount - convertedAmount,
           toBalanceAfter: newToAmount,
@@ -238,14 +265,14 @@ export class WalletsService {
           from: {
             currency: fromCurrency,
             amount,
-            newBalance: newFromAmount,
+            newBalance: parseFloat((newFromAmount / 100).toFixed(2)),
           },
           to: {
             currency: toCurrency,
-            amount: convertedAmount,
-            newBalance: newToAmount,
+            amount: parseFloat((convertedAmount / 100).toFixed(2)),
+            newBalance: parseFloat((newToAmount / 100).toFixed(2)),
           },
-          exchangeRate,
+          exchangeRate: conversionRate,
           timestamp: transaction.createdAt,
         },
       };

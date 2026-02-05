@@ -56,7 +56,7 @@ export class FxRatesService {
     return currencies;
   }
 
-  async getRate(from: Currency, to: Currency): Promise<number> {
+  async getRate(from: string, to: string): Promise<number> {
     if (from === to) {
       return 1;
     }
@@ -85,13 +85,13 @@ export class FxRatesService {
       if (cached) {
         console.warn(
           `Using expired cache for ${from}/${to} due to API error`,
-          error.message,
+          error,
         );
         return cached.rate;
       }
 
       throw new Error(
-        `Failed to fetch exchange rate for ${from}/${to}: ${error.message}`,
+        `Failed to fetch exchange rate for ${from}/${to}: ${error}`,
       );
     }
   }
@@ -136,15 +136,15 @@ export class FxRatesService {
   }
 
   private async fetchRateFromAPI(
-    from: Currency,
+    from: string,
   ): Promise<number> {
     try {
       const url = `${this.apiUrl}/${from}`;
 
       const response = await axios.get(url, { timeout: 5000 });
 
-      if (response.data && response.data.conversion_rate) {
-        return response.data.conversion_rate;
+      if (response.data && response.data.conversion_rates) {
+        return response.data.conversion_rates;
       }
 
       throw new Error('Invalid API response format');

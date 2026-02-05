@@ -12,7 +12,7 @@ export class EmailService {
                   'Content-Type': 'application/json',
                 },
                 data: JSON.stringify({
-                  event: `email-verify`,
+                  event: `User-signup`,
                   email: `${email}`,
                   data: {
                     code: `${code}`

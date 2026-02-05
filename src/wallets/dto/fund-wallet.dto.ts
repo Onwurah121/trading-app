@@ -6,8 +6,8 @@ export class FundWalletDto {
   @IsString()
   email: string;
   
-  @IsEnum(Currency)
-  currency: Currency;
+  @IsString()
+  currency: string;
 
   @IsNumber()
   @IsPositive()

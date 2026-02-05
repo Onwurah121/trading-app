@@ -1,13 +1,13 @@
-import { IsEnum, IsNumber, IsPositive } from 'class-validator';
+import { IsEnum, IsNumber, IsPositive, IsString } from 'class-validator';
 import { Currency } from '../../common/enums/currency.enum';
 import { Type } from 'class-transformer';
 
 export class ConvertCurrencyDto {
-  @IsEnum(Currency)
-  fromCurrency: Currency;
+  @IsString()
+  fromCurrency: string;
 
-  @IsEnum(Currency)
-  toCurrency: Currency;
+  @IsString()
+  toCurrency: string;
 
   @IsNumber()
   @IsPositive()

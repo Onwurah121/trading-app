@@ -1,8 +1,11 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { LoginDto } from './dto/login.dto';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { User } from 'src/users/entities/user.entity';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -13,10 +16,11 @@ export class AuthController {
     return this.authService.register(registerDto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('verify')
   @HttpCode(HttpStatus.OK)
-  async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
-    return this.authService.verifyOtp(verifyOtpDto);
+  async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto, @CurrentUser() user: User) {
+    return this.authService.verifyOtp(user.email, verifyOtpDto);
   }
 
   @Post('login')

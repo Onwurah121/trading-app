@@ -30,18 +30,16 @@ export class Transaction {
   type: TransactionType;
 
   @Column({
-    type: 'enum',
-    enum: Currency,
+    type: 'varchar',
     nullable: true,
   })
-  fromCurrency: Currency;
+  fromCurrency: string;
 
   @Column({
-    type: 'enum',
-    enum: Currency,
+    type: 'varchar',
     nullable: true,
   })
-  toCurrency: Currency;
+  toCurrency: string;
 
   @Column({
     type: 'decimal',

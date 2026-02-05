@@ -24,10 +24,9 @@ export class Balance {
   wallet: Wallet;
 
   @Column({
-    type: 'enum',
-    enum: Currency,
+    type: 'varchar',
   })
-  currency: Currency;
+  currency: string;
 
   @Column({
     type: 'integer',
