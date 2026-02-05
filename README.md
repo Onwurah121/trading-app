@@ -682,7 +682,7 @@ Obinna Emmanuel Edmund - FX Trading App
 ---
 
 **Need Help?**
-- Check the Swagger documentation at `/api/docs`
+- Check the Postman documentation at `https://documenter.getpostman.com/view/18641174/2sBXc8nhk4`
 - Review the implementation plan in the project repository
 - Ensure PostgreSQL is running and accessible
 - Verify all environment variables are correctly set
