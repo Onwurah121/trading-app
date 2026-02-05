@@ -10,7 +10,6 @@ import { WalletsModule } from './wallets/wallets.module';
 import { FxRatesModule } from './fx-rates/fx-rates.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { CurrenciesModule } from './currencies/currencies.module';
-
 @Module({
   imports: [
     ConfigModule.forRoot({

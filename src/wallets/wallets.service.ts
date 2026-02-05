@@ -68,7 +68,7 @@ export class WalletsService {
   async fundWallet(fundWalletDto: FundWalletDto) {
     let { email, currency, amount } = fundWalletDto;
     // Convert to smallest unit (cents) and ensure it's an integer
-    amount = Math.round(amount * 100);
+    //amount = Math.round(amount * 100);
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -282,14 +282,5 @@ export class WalletsService {
     } finally {
       await queryRunner.release();
     }
-  }
-
-  // Trade is an alias for convert
-  async trade(userId: string, convertDto: ConvertCurrencyDto) {
-    const result = await this.convertCurrency(userId, convertDto);
-    return {
-      ...result,
-      message: 'Trade executed successfully',
-    };
   }
 }

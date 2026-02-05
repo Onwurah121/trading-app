@@ -29,7 +29,6 @@ export class FxRatesService {
     private currenciesService: CurrenciesService,
   ) {
     this.apiUrl = this.configService.get('FX_API_URL');
-    this.apiKey = this.configService.get('FX_API_KEY');
   }
 
   /**
@@ -96,45 +95,6 @@ export class FxRatesService {
     }
   }
 
-  async getAllRates(baseCurrencyCode?: string): Promise<any> {
-    // Get all active currencies from cache or database
-    const activeCurrencies = await this.getActiveCurrencies();
-    
-    // Determine base currency
-    const baseCurrency = baseCurrencyCode 
-      ? activeCurrencies.find(c => c.code === baseCurrencyCode.toUpperCase())
-      : activeCurrencies.find(c => c.code === 'NGN') || activeCurrencies[0];
-
-    if (!baseCurrency) {
-      throw new Error('Base currency not found or no active currencies available');
-    }
-
-    const rates = {};
-    
-    // Get rates for all other active currencies
-    const targetCurrencies = activeCurrencies.filter(
-      (curr) => curr.code !== baseCurrency.code,
-    );
-
-    for (const currency of targetCurrencies) {
-      try {
-        rates[currency.code] = await this.getRate(
-          baseCurrency.code as Currency,
-          currency.code as Currency,
-        );
-      } catch (error) {
-        console.error(`Error fetching rate for ${currency.code}:`, error.message);
-        rates[currency.code] = null;
-      }
-    }
-
-    return {
-      base: baseCurrency.code,
-      rates,
-      timestamp: new Date().toISOString(),
-    };
-  }
-
   private async fetchRateFromAPI(
     from: string,
   ): Promise<number> {
@@ -178,5 +138,50 @@ export class FxRatesService {
   // Clear only currencies cache (call this when currencies are added/updated/deleted)
   clearCurrenciesCache(): void {
     this.currenciesCache = null;
+  }
+
+  /**
+   * Get FX rates for all supported currency pairs
+   * Returns rates in both directions for each pair
+   */
+  async getAllPairsRates(): Promise<any> {
+    const activeCurrencies = await this.getActiveCurrencies();
+    
+    const pairs = [];
+    
+    // Generate all unique pairs
+    for (let i = 0; i < activeCurrencies.length; i++) {
+      for (let j = i + 1; j < activeCurrencies.length; j++) {
+        const base = activeCurrencies[i];
+        const quote = activeCurrencies[j];
+        
+        try {
+          const forwardRate = await this.getRate(base.code, quote.code);
+          const reverseRate = await this.getRate(quote.code, base.code);
+          
+          pairs.push({
+            pair: `${base.code}/${quote.code}`,
+            base: base.code,
+            quote: quote.code,
+            rate: forwardRate[quote.code],
+          });
+          
+          pairs.push({
+            pair: `${quote.code}/${base.code}`,
+            base: quote.code,
+            quote: base.code,
+            rate: reverseRate[base.code],
+          });
+        } catch (error) {
+          console.error(`Error fetching rate for ${base.code}/${quote.code}:`, error.message);
+        }
+      }
+    }
+    
+    return {
+      pairs,
+      totalPairs: pairs.length,
+      timestamp: new Date().toISOString(),
+    };
   }
 }

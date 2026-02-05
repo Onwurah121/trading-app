@@ -32,13 +32,4 @@ export class WalletsController {
   ) {
     return this.walletsService.convertCurrency(user.id, convertDto);
   }
-
-  @UseGuards(JwtAuthGuard, VerifiedUserGuard)
-  @Post('trade')
-  async trade(
-    @CurrentUser() user: User,
-    @Body() convertDto: ConvertCurrencyDto,
-  ) {
-    return this.walletsService.trade(user.id, convertDto);
-  }
 }

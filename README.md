@@ -84,17 +84,11 @@ DATABASE_NAME=fx_trading_db
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 JWT_EXPIRATION=7d
 
-# Email Configuration (Gmail SMTP)
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_SECURE=false
-EMAIL_USER=your-email@gmail.com
-EMAIL_PASSWORD=your-app-specific-password
-EMAIL_FROM=FX Trading App <noreply@fxtrading.com>
+# Email Configuration (PLUNK EMAIL)
+PLUNK_API_KEY=your_plunk_key
 
 # FX Rate API
 FX_API_URL=https://v6.exchangerate-api.com/v6
-FX_API_KEY=your-exchangerate-api-key
 
 # Application
 PORT=3000
@@ -102,7 +96,7 @@ NODE_ENV=development
 ```
 
 **Important Notes:**
-- For Gmail, you need to generate an **App Password** (not your regular password). See: https://support.google.com/accounts/answer/185833
+- Get your free Plunk key at: https://www.useplunk.com/
 - Get your free ExchangeRate-API key at: https://www.exchangerate-api.com/
 
 ### 5. Run the application
@@ -119,8 +113,11 @@ npm run start:prod
 The application will be available at:
 - **API**: http://localhost:3000
 - **Swagger Documentation**: http://localhost:3000/api/docs
+- **Postman Documentation**: https://documenter.getpostman.com/view/18641174/2sBXc8nhk4
 
 ## 📚 API Documentation
+
+For complete API documentation with examples, visit the [Postman Documentation](https://documenter.getpostman.com/view/18641174/2sBXc8nhk4).
 
 ### Authentication Endpoints
 
@@ -190,31 +187,46 @@ Content-Type: application/json
 }
 ```
 
-#### Trade Currency (Alias for Convert)
+### FX Rates Endpoints
+
+#### Get All Currency Pairs with Rates
 ```http
-POST /wallet/trade
-Authorization: Bearer <token>
+GET /fx/pairs
+```
+
+Returns exchange rates for all supported currency pairs in both directions.
+
+### Currency Management Endpoints (Admin Only)
+
+#### Get All Currencies
+```http
+GET /currencies
+Authorization: Bearer <admin-token>
+```
+
+#### Add New Currency
+```http
+POST /currencies
+Authorization: Bearer <admin-token>
 Content-Type: application/json
 
 {
-  "fromCurrency": "USD",
-  "toCurrency": "EUR",
-  "amount": 100
+  "code": "ZAR",
+  "name": "South African Rand",
+  "symbol": "R",
+  "isActive": true
 }
 ```
 
-### FX Rates Endpoints (Requires Authentication)
-
-#### Get All Rates
+#### Activate/Deactivate Currency
 ```http
-GET /fx/rates
-Authorization: Bearer <token>
-```
+PATCH /currencies/:id
+Authorization: Bearer <admin-token>
+Content-Type: application/json
 
-#### Get Specific Rate
-```http
-GET /fx/rates/NGN/USD
-Authorization: Bearer <token>
+{
+  "isActive": false
+}
 ```
 
 ### Transaction Endpoints (Requires Authentication)
@@ -226,7 +238,7 @@ Authorization: Bearer <token>
 ```
 
 Query Parameters:
-- `type`: FUNDING, CONVERSION, TRADE
+- `type`: FUNDING, CONVERSION
 - `status`: PENDING, COMPLETED, FAILED
 - `startDate`: ISO date string
 - `endDate`: ISO date string
@@ -402,37 +414,28 @@ src/
 
 ## 🔧 Key Assumptions
 
-1. **Email Service**: Gmail SMTP is used for development. For production, consider using dedicated services like SendGrid, Mailgun, or AWS SES.
+1. **Wallet Funding**: The fund wallet endpoint assumes integration with a payment platform (e.g., Paystack, Flutterwave, Stripe). When a customer makes a payment, the payment platform sends a webhook to our system, which triggers the wallet funding for the specific currency. For production scalability, these webhook events should be pushed to a message queue (e.g., RabbitMQ, AWS SQS, Redis Queue) for asynchronous processing to handle high volumes and ensure reliability.
 
-2. **FX Rate API**: Using ExchangeRate-API free tier (1,500 requests/month). For production with high traffic, upgrade to a paid plan or use alternative providers.
+2. **Currency Conversion**: The conversion process applies **no additional fees or spreads**. Users receive the exact exchange rate from the FX API without any markup. This provides transparent, fee-free currency swaps.
 
-3. **Database**: PostgreSQL is used for its robust ACID compliance and excellent support for concurrent transactions.
+3. **Currency Management**: The system allows administrators to:
+   - Add new currencies to the platform
+   - Activate currencies for trading
+   - Deactivate currencies when needed
+   - All currency operations are managed through the admin endpoints
 
-4. **Supported Currencies**: NGN, USD, EUR, GBP, JPY, CAD, AUD, CHF. Additional currencies can be easily added to the `Currency` enum.
+4. **Email Service**: Plunk is used for transactional emails (OTP verification). For production, ensure you have a valid Plunk API key.
 
-5. **OTP Expiry**: OTP codes expire after 10 minutes.
+5. **FX Rate API**: Using ExchangeRate-API free tier (1,500 requests/month). For production with high traffic, upgrade to a paid plan or use alternative providers.
 
-6. **Cache TTL**: FX rates are cached for 5 minutes to balance freshness with API rate limits.
+6. **Database**: PostgreSQL is used for its robust ACID compliance and excellent support for concurrent transactions.
 
-7. **Synchronize**: TypeORM `synchronize` is enabled in development for automatic schema updates. **Disable in production** and use migrations.
+7. **OTP Expiry**: OTP codes expire after 10 minutes.
 
-## 🚀 Deployment Considerations
+8. **Cache TTL**: FX rates are cached for 5 minutes to balance freshness with API rate limits.
 
-### Production Checklist
+9. **Synchronize**: TypeORM `synchronize` is enabled in development for automatic schema updates. **Disable in production** and use migrations.
 
-- [ ] Disable TypeORM `synchronize` and use migrations
-- [ ] Set strong `JWT_SECRET`
-- [ ] Use production-grade email service
-- [ ] Upgrade FX API plan for higher rate limits
-- [ ] Enable database connection pooling
-- [ ] Add rate limiting middleware
-- [ ] Set up logging (Winston, Pino)
-- [ ] Configure monitoring (Prometheus, Grafana)
-- [ ] Use Redis for distributed caching
-- [ ] Set up CI/CD pipeline
-- [ ] Configure environment-specific configs
-- [ ] Enable HTTPS
-- [ ] Set up database backups
 
 ### Environment Variables for Production
 
@@ -444,8 +447,6 @@ Ensure all sensitive values are properly secured:
 ## 🤝 Contributing
 
 This is an assessment project. For production use, consider:
-- Adding comprehensive unit and integration tests
-- Implementing role-based access control (RBAC)
 - Adding idempotency keys for transactions
 - Implementing webhook notifications
 - Adding analytics and reporting features
@@ -456,7 +457,7 @@ This project is created for assessment purposes.
 
 ## 👤 Author
 
-Backend Engineering Assessment - FX Trading App
+Obinna Emmanuel Edmund - FX Trading App
 
 ---
 
