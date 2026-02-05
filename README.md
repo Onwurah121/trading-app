@@ -245,6 +245,226 @@ Query Parameters:
 - `page`: Page number (default: 1)
 - `limit`: Items per page (default: 20)
 
+## 📊 System Architecture & Flow Diagrams
+
+### High-Level System Architecture
+
+```mermaid
+graph TB
+    Client[Client Application]
+    API[NestJS API Server]
+    Auth[Authentication Module]
+    Wallet[Wallet Module]
+    FX[FX Rates Module]
+    Currency[Currency Module]
+    Transaction[Transaction Module]
+    DB[(PostgreSQL Database)]
+    ExtAPI[ExchangeRate API]
+    Email[Plunk Email Service]
+    Queue[Message Queue<br/>RabbitMQ/SQS]
+    Payment[Payment Gateway<br/>Paystack/Flutterwave]
+
+    Client -->|HTTP/REST| API
+    API --> Auth
+    API --> Wallet
+    API --> FX
+    API --> Currency
+    API --> Transaction
+    
+    Auth --> DB
+    Auth --> Email
+    Wallet --> DB
+    FX --> DB
+    FX -->|Fetch Rates| ExtAPI
+    Currency --> DB
+    Transaction --> DB
+    
+    Payment -->|Webhook| Queue
+    Queue -->|Process| Wallet
+    
+    style API fill:#4CAF50
+    style DB fill:#2196F3
+    style Queue fill:#FF9800
+    style Payment fill:#9C27B0
+```
+
+### Currency Conversion Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant API
+    participant WalletService
+    participant FXService
+    participant Database
+    participant ExchangeAPI
+
+    User->>API: POST /wallet/convert
+    API->>API: Authenticate User
+    API->>WalletService: convertCurrency()
+    
+    WalletService->>Database: Start Transaction
+    WalletService->>Database: Get Wallet (Lock)
+    
+    WalletService->>FXService: getRate(from, to)
+    FXService->>FXService: Check Cache
+    alt Cache Hit
+        FXService-->>WalletService: Return Cached Rate
+    else Cache Miss
+        FXService->>ExchangeAPI: Fetch Rate
+        ExchangeAPI-->>FXService: Exchange Rate
+        FXService->>FXService: Cache Rate (5 min)
+        FXService-->>WalletService: Return Rate
+    end
+    
+    WalletService->>Database: Get Source Balance (Lock)
+    WalletService->>WalletService: Validate Sufficient Funds
+    WalletService->>Database: Get/Create Target Balance (Lock)
+    
+    WalletService->>WalletService: Calculate Conversion<br/>(amount × rate)
+    WalletService->>Database: Update Source Balance
+    WalletService->>Database: Update Target Balance
+    WalletService->>Database: Create Transaction Record
+    
+    WalletService->>Database: Commit Transaction
+    WalletService-->>API: Conversion Result
+    API-->>User: Success Response
+```
+
+### Wallet Funding Flow (Webhook-Based)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant PaymentGateway
+    participant Webhook
+    participant Queue
+    participant Worker
+    participant WalletService
+    participant Database
+    participant Email
+
+    User->>PaymentGateway: Initiate Payment
+    PaymentGateway->>PaymentGateway: Process Payment
+    
+    PaymentGateway->>Webhook: POST /webhooks/payment
+    Webhook->>Webhook: Verify Signature
+    Webhook->>Queue: Push Event to Queue
+    Webhook-->>PaymentGateway: 200 OK
+    
+    Queue->>Worker: Consume Event
+    Worker->>WalletService: fundWallet(userId, currency, amount)
+    
+    WalletService->>Database: Start Transaction
+    WalletService->>Database: Get Wallet (Lock)
+    WalletService->>Database: Get/Create Balance (Lock)
+    WalletService->>Database: Update Balance
+    WalletService->>Database: Create Transaction Record
+    WalletService->>Database: Commit Transaction
+    
+    WalletService-->>Worker: Success
+    Worker->>Email: Send Confirmation Email
+    Email-->>User: Funding Confirmation
+```
+
+### User Registration & Verification Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant API
+    participant AuthService
+    participant Database
+    participant Email
+
+    User->>API: POST /auth/register
+    API->>AuthService: register(email, password)
+    AuthService->>AuthService: Hash Password
+    AuthService->>AuthService: Generate OTP (6 digits)
+    AuthService->>Database: Create User (unverified)
+    AuthService->>Database: Create Wallet
+    AuthService->>Email: Send OTP Email
+    Email-->>User: OTP Code
+    AuthService-->>API: Registration Success
+    API-->>User: Check Email for OTP
+
+    User->>API: POST /auth/verify
+    API->>AuthService: verifyEmail(email, otp)
+    AuthService->>Database: Get User
+    AuthService->>AuthService: Validate OTP & Expiry
+    AuthService->>Database: Mark User as Verified
+    AuthService-->>API: Verification Success
+    API-->>User: Account Verified
+
+    User->>API: POST /auth/login
+    API->>AuthService: login(email, password)
+    AuthService->>Database: Get User
+    AuthService->>AuthService: Verify Password
+    AuthService->>AuthService: Generate JWT Token
+    AuthService-->>API: JWT Token
+    API-->>User: Access Token
+```
+
+### Database Entity Relationship Diagram
+
+```mermaid
+erDiagram
+    USERS ||--o| WALLETS : has
+    USERS ||--o{ TRANSACTIONS : creates
+    WALLETS ||--o{ BALANCES : contains
+    CURRENCIES ||--o{ BALANCES : "denominated in"
+    
+    USERS {
+        uuid id PK
+        string email UK
+        string password
+        boolean isVerified
+        string otp
+        timestamp otpExpiry
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    
+    WALLETS {
+        uuid id PK
+        uuid userId FK
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    
+    BALANCES {
+        uuid id PK
+        uuid walletId FK
+        string currency FK
+        integer amount
+        timestamp updatedAt
+    }
+    
+    CURRENCIES {
+        uuid id PK
+        string code UK
+        string name
+        string symbol
+        boolean isActive
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    
+    TRANSACTIONS {
+        uuid id PK
+        uuid userId FK
+        enum type
+        string fromCurrency
+        string toCurrency
+        decimal fromAmount
+        decimal toAmount
+        decimal exchangeRate
+        enum status
+        jsonb metadata
+        timestamp createdAt
+    }
+```
+
 ## 🏗️ Architecture & Design Decisions
 
 ### Multi-Currency Wallet Design
